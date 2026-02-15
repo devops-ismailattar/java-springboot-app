@@ -16,6 +16,6 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: build application
-        uses: mvn -B clean package
+        run: mvn -B clean package
       - run: echo "build successfull"
 
