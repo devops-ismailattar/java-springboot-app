@@ -10,4 +10,12 @@ jobs:
         uses: actions/checkout@v6.0.2
       - run: |
           echo "cicd intiliazed successfully" 
+      - name: setup jdk
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: build application
+        uses: mvn -B clean package
+      - run: echo "build successfull"
 
