@@ -18,4 +18,82 @@ jobs:
       - name: build application
         run: mvn -B clean package
       - run: echo "build successfull"
+      
+      - name: sonarqube scan
+        uses: SonarSource/sonarqube-scan-action@v7.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+      - name: sonarqube qwality gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        id: sonarqube-quality-gate-check
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+      - name: upload build artifact
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: build-artifact
+          path: ./target/*.jar
+
+
+  build-and-push-docker-image:
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - name: code chekout
+        uses: actions/checkout@v6.0.2
+
+      - name: download build artifaact
+        uses: actions/download-artifact@v7.0.0
+        with: 
+          name: build-artifact
+          path: ./target/
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-south-1
+          role-to-assume: arn:aws:iam::076226033208:role/github-actions-ecr-role
+
+      - name: login to ECR
+        uses: docker/login-action@v3.7.0
+        with:
+          registry: 076226033208.dkr.ecr.ap-south-1.amazonaws.com
+      
+      - name: build and push docker image
+        uses: docker/build-push-action@v6.19.2
+        with:
+          context: .
+          push: true
+          tags: 076226033208.dkr.ecr.ap-south-1.amazonaws.com/springboot-java-app:${{github.sha}}
+
+  update-deployment-files:
+    needs: build-and-push-docker-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: code chekout
+        uses: actions/checkout@v6.0.2
+        with:
+          token: ${{ github.token }}
+      - name: update deployment files with commit tag
+        run: |
+          git config user.name ismail
+          git config user.email ismail.attar@github.com
+          sed -i "s|image:.*|image: 076226033208.dkr.ecr.ap-south-1.amazonaws.com/springboot-java-app:${{ github.sha }}|" app-manifest/deployment.yml
+          git add app-manifest/deployment.yml
+          git commit -m "updated deployment files to  ${{ github.sha }} "
+          git push origin main
+          git fetch origin
+          git checkout argocd
+          sed -i "s|image:.*|image: 076226033208.dkr.ecr.ap-south-1.amazonaws.com/springboot-java-app:${{ github.sha }}|" app-manifest/deployment.yml
+          git add app-manifest/deployment.yml
+          git commit -m "updated deployment files to  ${{ github.sha }} "
+          git push origin argocd
 
