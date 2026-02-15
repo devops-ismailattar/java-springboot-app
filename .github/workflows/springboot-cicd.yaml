@@ -8,6 +8,6 @@ jobs:
     steps:
       - name: code chekout
         uses: actions/checkout@v6.0.2
-        run: |
+      - run: |
           echo "cicd intiliazed successfully" 
 
