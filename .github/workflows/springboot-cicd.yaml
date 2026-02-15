@@ -44,6 +44,8 @@ jobs:
   build-and-push-docker-image:
     runs-on: ubuntu-latest
     needs: checkout
+    permissions:
+      id-token: write
     steps:
       - name: code chekout
         uses: actions/checkout@v6.0.2
